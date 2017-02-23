@@ -44,6 +44,16 @@ class Message implements \JsonSerializable
         return $this;
     }
 
+    public function addRecipients($recipients)
+    {
+
+        foreach($recipients as $id){
+            $this->addRecipient(new Device($id));
+        }
+
+        return $this;
+    }
+
     public function setNotification(Notification $notification)
     {
         $this->notification = $notification;
@@ -142,7 +152,8 @@ class Message implements \JsonSerializable
             throw new \UnexpectedValueException('Message must have at least one recipient');
         }
 
-        $jsonData['to'] = $this->createTo();
+        $jsonData['registration_ids'] = $this->createTo();
+
         if ($this->collapseKey) {
             $jsonData['collapse_key'] = $this->collapseKey;
         }
@@ -172,9 +183,12 @@ class Message implements \JsonSerializable
                 return sprintf('/topics/%s', current($this->recipients)->getName());
                 break;
             case Device::class:
-                if (count($this->recipients) == 1) {
-                    return current($this->recipients)->getToken();
+                $tokenArray = array();
+                foreach ($this->recipients as $recipient) {
+                    array_push($tokenArray, $recipient->getToken());
                 }
+                return $tokenArray;
+
 
                 break;
             default:
