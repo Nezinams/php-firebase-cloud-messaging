@@ -57,18 +57,29 @@ class Client implements ClientInterface
      * @return \Psr\Http\Message\ResponseInterface
      * @throws \GuzzleHttp\Exception\RequestException
      */
-    public function send(Message $message)
+    public function send(Message $message, $retry_on_error = false)
     {
-        return $this->guzzleClient->post(
-            $this->getApiUrl(),
-            [
-                'headers' => [
-                    'Authorization' => sprintf('key=%s', $this->apiKey),
-                    'Content-Type' => 'application/json'
-                ],
-                'body' => json_encode($message)
-            ]
-        );
+        try {
+            return $this->guzzleClient->post(
+                $this->getApiUrl(),
+                [
+                    'headers' => [
+                        'Authorization' => sprintf('key=%s', $this->apiKey),
+                        'Content-Type' => 'application/json'
+                    ],
+                    'body' => json_encode($message)
+                ]
+            );
+        } catch (GuzzleHttp\Exception\BadResponseException $e) {
+            if ($retry_on_error) {
+                //TODO Real exponential backup
+                $retry_after=$e->getResponse()->getHeader('retry-after')[0];
+                $sleep=$retry_after?$retry_after:5;
+                sleep($sleep);
+                return $this->send($message);
+            }
+            throw $e;
+        }
     }
 
     /**
